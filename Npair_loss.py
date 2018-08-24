@@ -23,13 +23,13 @@ class NpairLoss(nn.Module):
 
     def forward(self, anchor, positive, target):
         batch_size = anchor.size(0)
+        target = target.view(target.size(0), 1)
 
-        labels = (target == torch.transpose(target, 0, 1)).float()
-        labels_sum = torch.sum(labels, dim=1, keepdim=True).float()
-        labels = labels / labels_sum
+        target = (target == torch.transpose(target, 0, 1)).float()
+        target = target / torch.sum(target, dim=1, keepdim=True).float()
 
         logit = torch.matmul(anchor, torch.transpose(positive, 0, 1))
-        loss_ce = cross_entropy(logit, labels)
+        loss_ce = cross_entropy(logit, target)
         l2_loss = torch.sum(anchor**2) / batch_size + torch.sum(positive**2) / batch_size
 
         loss = loss_ce + self.l2_reg*l2_loss*0.25
@@ -70,11 +70,10 @@ class NpairsLossTest(test.TestCase):
 
       # Compute the loss in pytorch
       npairloss = NpairLoss()
-
       loss_tc = npairloss(
                 anchor=torch.tensor(embeddings_anchor),
                 positive=torch.tensor(embeddings_positive),
-                target=torch.from_numpy(labels_reshaped)
+                target=torch.from_numpy(labels)
                 )
 
       # Compute the loss in TF
