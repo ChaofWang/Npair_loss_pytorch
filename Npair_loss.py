@@ -9,22 +9,6 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
 
 def cross_entropy(logits, target, size_average=True):
-    """ Cross entropy that accepts soft targets
-    Args:
-         pred: predictions for neural network
-         targets: targets, can be soft
-         size_average: if false, sum is returned instead of mean
-
-    Examples::
-
-        input = torch.FloatTensor([[1.1, 2.8, 1.3], [1.1, 2.1, 4.8]])
-        input = torch.autograd.Variable(out, requires_grad=True)
-
-        target = torch.FloatTensor([[0.05, 0.9, 0.05], [0.05, 0.05, 0.9]])
-        target = torch.autograd.Variable(y1)
-        loss = cross_entropy(input, target)
-        loss.backward()
-    """
     if size_average:
         return torch.mean(torch.sum(- target * F.log_softmax(logits, -1), -1))
     else:
@@ -38,23 +22,17 @@ class NpairLoss(nn.Module):
         self.l2_reg = l2_reg
 
     def forward(self, anchor, positive, target):
-        """
-        compute the feature pair loss,the first half is anchor
-        the last half is pair feature
-        :param feature:
-        :return:
-        """
         batch_size = anchor.size(0)
 
-        logit = torch.matmul(anchor, torch.transpose(positive, 0, 1))
-        labels = (target == torch.transpose(target, 0, 1))
-        labels_sum = torch.sum(labels, dim=1, keepdim=True)
-        labels = labels.float() / labels_sum.float()
+        labels = (target == torch.transpose(target, 0, 1)).float()
+        labels_sum = torch.sum(labels, dim=1, keepdim=True).float()
+        labels = labels / labels_sum
 
-        loss_sce = cross_entropy(logit, labels)
+        logit = torch.matmul(anchor, torch.transpose(positive, 0, 1))
+        loss_ce = cross_entropy(logit, labels)
         l2_loss = torch.sum(anchor**2) / batch_size + torch.sum(positive**2) / batch_size
 
-        loss = loss_sce + self.l2_reg*l2_loss*0.25
+        loss = loss_ce + self.l2_reg*l2_loss*0.25
         return loss
 
 
